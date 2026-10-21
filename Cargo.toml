@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/database",
+    "services/gateway"
+]
+
+[workspace.dependencies]
