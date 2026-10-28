@@ -3,7 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
 import { AnimatedSplashOverlay } from '@/navigation/components/splash-overlay';
-import AppTabs from '@/navigation/app-tabs';
+import App_tabs from '@/navigation/app_tabs';
 import { AppThemeProvider, useAppTheme } from '@/shared/theme/provider';
 
 SplashScreen.preventAutoHideAsync();
@@ -27,7 +27,7 @@ function ThemedLayout() {
       }}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <AnimatedSplashOverlay />
-      <AppTabs />
+      <App_tabs />
     </ThemeProvider>
   );
 }
