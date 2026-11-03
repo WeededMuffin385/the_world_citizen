@@ -1,37 +1,40 @@
-import {useEffect} from 'react';
-import {StyleSheet, View} from 'react-native';
-import {WebView} from 'react-native-webview';
+import {Camera, Map, type MapRef} from '@maplibre/maplibre-react-native';
+import {useMemo, useRef, useState} from 'react';
+import {StyleSheet} from 'react-native';
 
-import {readMapMessage, type CountryMapSurfaceProps} from './map-messages';
+import {countryBounds, countryMapStyle, readCountryCode} from './country-map-data';
+import type {CountryMapSurfaceProps} from './map-messages';
 
-export function CountryMapSurface({path, channel, onMessage, onError}: CountryMapSurfaceProps) {
-    const origin = process.env.EXPO_PUBLIC_GOOGLE_MAPS_WEB_ORIGIN?.trim();
-    let uri: string | null = null;
-    try {
-        const url = origin ? new URL(path, origin) : null;
-        if (url && ['https:', 'http:'].includes(url.protocol)) uri = url.href;
-    } catch {
-        // Keep the list picker available when the map host is not configured.
-    }
-
-    useEffect(() => {
-        if (!uri) onError('configuration');
-    }, [uri, onError]);
-
-    if (!uri) return <View style={styles.map} />;
+export function CountryMapSurface({selected, dark, onMessage, onError}: CountryMapSurfaceProps) {
+    const map = useRef<MapRef>(null);
+    const request = useRef(0);
+    const [draft, setDraft] = useState(selected);
+    const style = useMemo(() => countryMapStyle(dark, draft), [dark, draft]);
+    const initialViewState = useMemo(() => {
+        const bounds = countryBounds(selected);
+        return bounds ? {bounds, padding: {top: 32, bottom: 32, left: 32, right: 32}} : {center: [10, 20] as [number, number], zoom: 0.5};
+    }, [selected]);
 
     return (
-        <WebView source={{uri}} style={styles.map} javaScriptEnabled domStorageEnabled
-            onMessage={event => {
-                const message = readMapMessage(event.nativeEvent.data, channel);
-                if (message) onMessage(message);
-            }}
-            onError={() => onError('network')}
-            onHttpError={() => onError('network')}
-            onContentProcessDidTerminate={() => onError('network')}
-            onRenderProcessGone={() => onError('network')}
-        />
+        <Map ref={map} style={styles.map} mapStyle={style}
+            onDidFinishLoadingMap={() => onMessage({type: 'ready'})}
+            onDidFailLoadingMap={() => onError('boundaries')}
+            onPress={async event => {
+                const current = ++request.current;
+                try {
+                    const features = await map.current?.queryRenderedFeatures(event.nativeEvent.point, {layers: ['countries']});
+                    if (current !== request.current) return;
+                    const code = readCountryCode(features?.[0]?.properties?.code);
+                    if (!code) return;
+                    setDraft(code);
+                    onMessage({type: 'selection', code});
+                } catch {
+                    if (current === request.current) onError('selection');
+                }
+            }}>
+            <Camera initialViewState={initialViewState} minZoom={0} maxZoom={8} />
+        </Map>
     );
 }
 
-const styles = StyleSheet.create({map: {flex: 1, backgroundColor: 'transparent'}});
+const styles = StyleSheet.create({map: {flex: 1}});

@@ -1,10 +1,15 @@
-import type {PropsWithChildren} from 'react';
+import {useState, type PropsWithChildren} from 'react';
 import {StyleSheet, View} from 'react-native';
 import Svg, {Path} from 'react-native-svg';
 
+const DESIGN_WIDTH = 400;
+const DESIGN_HEIGHT = 200;
+
 export function TitleCloud({children}: PropsWithChildren) {
+    const [width, setWidth] = useState(0);
+
     return (
-        <View style={styles.container}>
+        <View style={styles.container} onLayout={event => setWidth(event.nativeEvent.layout.width)}>
             <Svg
                 pointerEvents="none"
                 aria-hidden={true}
@@ -12,7 +17,7 @@ export function TitleCloud({children}: PropsWithChildren) {
                 width="100%"
                 height="100%"
                 viewBox="0 0 400 200"
-                preserveAspectRatio="none">
+                preserveAspectRatio="xMidYMid meet">
                 <Path
                     fill="#FFFFFF"
                     d="M 62 178
@@ -31,16 +36,30 @@ export function TitleCloud({children}: PropsWithChildren) {
                        C 75 181 68 181 62 178 Z"
                 />
             </Svg>
-            {children}
+            <View style={[styles.content, {transform: [{scale: width / DESIGN_WIDTH}]}]}>
+                {children}
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        alignSelf: 'stretch',
+        alignSelf: 'center',
+        width: '100%',
+        maxWidth: 600,
+        aspectRatio: DESIGN_WIDTH / DESIGN_HEIGHT,
+    },
+    content: {
+        // Keep text and artwork in the same coordinate system as the cloud scales.
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: 320,
+        height: 120,
+        marginLeft: -160,
+        marginTop: -60,
         alignItems: 'center',
-        paddingHorizontal: 32,
-        paddingVertical: 48,
+        justifyContent: 'center',
     },
 });

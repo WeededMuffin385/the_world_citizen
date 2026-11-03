@@ -1,8 +1,7 @@
-# Country boundary fallback
+# Bundled country boundaries
 
 Public-domain Natural Earth Admin 0 country polygons at 1:50 million scale.
-Used only when the Google COUNTRY feature layer or vector renderer is unavailable.
-These generalized outlines can differ from Google boundaries. Small territories
+Bundled with the application for offline MapLibre rendering. Small territories
 without a polygon remain selectable through the country list.
 
 Source: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson

@@ -111,7 +111,7 @@ export default function ExploreScreen() {
                             <ThemedText style={styles.flex}>{country?.name ?? 'Any country'}</ThemedText>
                             <ChevronDown color={colors.textSecondary} size={18} />
                         </Pressable>
-                        <Pressable accessibilityRole="button" accessibilityLabel="Choose a country on Google Maps"
+                        <Pressable accessibilityRole="button" accessibilityLabel="Choose a country on the map"
                             onPress={() => setCountryMapOpen(true)}
                             style={[styles.mapButton, {backgroundColor: colors.tabSurface}]}>
                             <Map color={colors.tabText} size={20} />

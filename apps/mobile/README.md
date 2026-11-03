@@ -32,63 +32,39 @@ The `pnpm reset-project` command replaces the starter application with a blank
 route structure. It can optionally move the current source and demo assets into
 `example/` first.
 
-## Google Maps country picker
+## Offline MapLibre country picker
 
-Explore offers both a searchable country list and a **Choose on map** action.
-Tapping a country highlights its boundaries; **Select country** applies it to the
-existing filter. Closing the map discards an unconfirmed selection. Loading and
-configuration failures leave the list picker available.
+Explore offers a searchable country list and a **Choose on map** action.
+Android and iOS use `@maplibre/maplibre-react-native`; web uses `maplibre-gl`.
+The map style and Natural Earth country polygons are bundled with the application.
+No API keys, map hosting, tile downloads, or network connection are needed to
+select a country. The map shows country outlines rather than a street map.
 
-If Google country boundaries or the vector renderer are unavailable, the map
-automatically loads a local Natural Earth polygon layer. This supports hover and
-selection on raster maps too. The fallback uses generalized outlines for 236
-ISO country codes; smaller territories without polygons remain available in the
-list. The map labels this boundary source. See `public/data/README.md` for its
-public-domain license and source. All polygons sharing an ISO code are combined
-to keep mainland and island territories interactive together.
+Tap a country to highlight it, then confirm with **Select country**. Closing the
+map discards the draft selection. Web also supports hover previews. Small
+territories without polygons remain selectable through the list.
 
-The same Google Maps JavaScript map is used in a browser iframe and in
-`react-native-webview` on Android/iOS. The HTML is served by the Expo API route
-`/country-map`, so Google receives a real website origin rather than a local HTML
-document. API routes require the existing `web.output: "server"` configuration
-and a running Expo server in development or a server deployment in production.
+Data and license: `src/pages/explore/data/country-boundaries.md`.
 
-1. In Google Cloud, enable billing, **Maps JavaScript API**, and **Geocoding API**.
-2. Create a **JavaScript vector Map ID**, create a cloud map style with the
-   **Country (`COUNTRY`)** boundary feature layer enabled, and associate the style
-   with that Map ID.
-3. Copy `.env.example` to `.env.local` and set `GOOGLE_MAPS_API_KEY` and
-   `GOOGLE_MAPS_MAP_ID`. These are read by the server route. The key is delivered
-   to the browser to load Google Maps; it is a browser key, not a server secret.
-   Restrict it to the map website's HTTP referrers and the two enabled APIs.
-4. For Android/iOS, set `EXPO_PUBLIC_GOOGLE_MAPS_WEB_ORIGIN` to the origin serving
-   this application, such as `https://travel.example.com`. During local testing,
-   use a device-reachable development server address, such as
-   `http://192.168.1.10:8081`, and configure the key's referrer restrictions
-   accordingly. `localhost` on a physical phone refers to the phone itself.
-   The browser uses its current origin and does not need this variable.
-5. Restart Expo after changing environment variables. Set the server variables
-   on the production hosting environment too, and rebuild native bundles after
-   changing the public origin. Existing custom native development builds may
-   need rebuilding to include the new WebView dependency; Expo Go includes it.
+MapLibre includes native code and its Expo config plugin is registered in
+`app.json`. Rebuild the Android/iOS app after installing dependencies; Expo Go
+does not include MapLibre. An OTA JavaScript update cannot add this native module.
 
-No Google requests are made until the map is opened. With Google's COUNTRY layer,
-selection uses Geocoding to translate a boundary's place ID to the same ISO code
-used by the list. The local fallback already has ISO codes and needs no Geocoding
-requests for clicks or hovering.
-Requests are limited to explicit taps or restoring the previously selected
-country; newer taps supersede pending selections. Map and Geocoding usage follow
-Google Maps Platform billing.
+```bash
+pnpm dlx eas-cli@latest build --platform android --profile production
+```
 
-Useful documentation:
+Metro copies MapLibre's module worker and its shared module from the installed
+package to `public/vendor/maplibre/<version>/` on startup and export. The web map
+sets this local worker URL explicitly; no CDN is used. Restart Expo after changing
+Metro configuration or upgrading MapLibre. These generated files are ignored by Git.
 
-- [Enable country boundary styling](https://developers.google.com/maps/documentation/javascript/dds-boundaries/start)
-- [Handle boundary clicks](https://developers.google.com/maps/documentation/javascript/dds-boundaries/handle-events)
-- [Enable Geocoding](https://developers.google.com/maps/documentation/javascript/geocoding)
-- [Expo API routes](https://docs.expo.dev/router/web/api-routes/)
+No separate Expo API server is required for the map. Web builds still need normal
+web hosting; offline loading of the website itself is not configured.
 
-Run the map regression checks with:
+Run map regression checks with:
 
 ```bash
 node scripts/country-map.test.cjs
+node scripts/maplibre-worker.test.cjs
 ```

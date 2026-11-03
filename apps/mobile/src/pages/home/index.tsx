@@ -14,7 +14,7 @@ export default function HomeScreen() {
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.heroSection}>
                     <TitleCloud>
-                        <ThemedText type="title" style={styles.title}>
+                        <ThemedText type="title" style={styles.title} numberOfLines={2} adjustsFontSizeToFit>
                             Welcome to Local&nbsp;Lands
                         </ThemedText>
                     </TitleCloud>

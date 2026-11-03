@@ -1,5 +1,5 @@
 import {MapPin, RotateCcw, X} from 'lucide-react-native';
-import {useCallback, useEffect, useId, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {ActivityIndicator, Modal, Pressable, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
@@ -15,19 +15,15 @@ type MapState = {status: 'loading' | 'ready' | 'selecting' | 'error'; draft: str
 const ERRORS: Record<MapError, string> = {
     configuration: 'The map is not available yet. You can still choose a country from the list in your filters.',
     boundaries: 'Country boundaries are unavailable. Please choose a country from the list in your filters.',
-    network: 'Could not load the map. Check your connection and try again, or choose a country from the list.',
+    network: 'Could not render the map. Try again or choose a country from the list.',
     selection: 'Could not select this country. Try another country or choose from the list in your filters.',
 };
 
 export function CountryMapPicker({selected, onSelect, onClose}: Props) {
     const {colors, scheme} = useAppTheme();
-    const channel = useId();
     const [attempt, setAttempt] = useState(0);
     const [state, setState] = useState<MapState>({status: 'loading', draft: selected, error: null});
     const country = COUNTRIES.find(item => item.code === state.draft);
-    const parameters = new URLSearchParams({channel, theme: scheme, retry: String(attempt)});
-    if (selected) parameters.set('country', selected);
-    const path = `/country-map?${parameters.toString()}`;
 
     const onError = useCallback((reason: MapError) => {
         setState(previous => ({...previous, status: reason === 'selection' ? 'ready' : 'error', error: reason}));
@@ -55,7 +51,7 @@ export function CountryMapPicker({selected, onSelect, onClose}: Props) {
     useEffect(() => {
         const timeout = setTimeout(() => {
             setState(previous => previous.status === 'loading'
-                ? {...previous, status: 'error', error: 'network'} : previous);
+                ? {...previous, status: 'error', error: 'boundaries'} : previous);
         }, 25000);
         return () => clearTimeout(timeout);
     }, [attempt]);
@@ -67,14 +63,14 @@ export function CountryMapPicker({selected, onSelect, onClose}: Props) {
                     <View style={styles.heading}>
                         <View style={styles.flex}>
                             <ThemedText type="smallBold">Choose on map</ThemedText>
-                            <ThemedText type="small" themeColor="textSecondary">Hover to preview borders. Tap or click a country to select it.</ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">Tap or click a country to select it.</ThemedText>
                         </View>
                         <Pressable accessibilityRole="button" accessibilityLabel="Close map" onPress={onClose} style={styles.iconButton}>
                             <X color={colors.text} size={22} />
                         </Pressable>
                     </View>
                     <View style={[styles.map, {backgroundColor: colors.backgroundElement}]}>
-                        <CountryMapSurface key={attempt} path={path} channel={channel} onMessage={onMessage} onError={onError} />
+                        <CountryMapSurface key={attempt} selected={selected} dark={scheme === 'dark'} onMessage={onMessage} onError={onError} />
                         {(state.status === 'loading' || state.status === 'selecting') && (
                             <View pointerEvents="none" style={[styles.loading, {backgroundColor: colors.background}]}>
                                 <ActivityIndicator color={colors.tabText} />
@@ -82,6 +78,7 @@ export function CountryMapPicker({selected, onSelect, onClose}: Props) {
                             </View>
                         )}
                     </View>
+                    <ThemedText type="small" themeColor="textSecondary">Country outlines: Natural Earth (public domain)</ThemedText>
                     {state.error && (
                         <View style={styles.error} accessibilityLiveRegion="polite">
                             <ThemedText type="small" themeColor="textSecondary">{ERRORS[state.error]}</ThemedText>
