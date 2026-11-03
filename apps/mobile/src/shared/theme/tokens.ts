@@ -7,6 +7,16 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+
+
+    tabSurface: '#EDF3E4',
+    tabSurfaceSelected: '#C4DCA8',
+    tabText: '#63734F',
+    tabTextSelected: '#30491E',
+    tabHighlight: 'rgba(255, 255, 255, 0.65)',
+    tabShadow: 'rgba(65, 85, 42, 0.13)',
+    themeToggleSurface: '#000000',
+    themeToggleText: '#FFFFFF',
   },
   dark: {
     text: '#ffffff',
@@ -14,6 +24,15 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+
+    tabSurface: '#22291E',
+    tabSurfaceSelected: '#405532',
+    tabText: '#A8B69A',
+    tabTextSelected: '#E0F2CC',
+    tabHighlight: 'rgba(178, 201, 151, 0.08)',
+    tabShadow: 'rgba(0, 0, 0, 0.35)',
+    themeToggleSurface: '#FFFFFF',
+    themeToggleText: '#000000',
   },
 } as const;
 
