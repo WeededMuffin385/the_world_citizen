@@ -21,7 +21,10 @@ export function AppThemeProvider({ children }: PropsWithChildren) {
       value={{
         scheme,
         colors: Colors[scheme],
-        toggleTheme: () => setSelectedScheme(scheme === 'dark' ? 'light' : 'dark'),
+        toggleTheme: () => setSelectedScheme((previousScheme) => {
+          const currentScheme = previousScheme ?? (systemScheme === 'dark' ? 'dark' : 'light');
+          return currentScheme === 'dark' ? 'light' : 'dark';
+        }),
       }}>
       {children}
     </AppThemeContext.Provider>

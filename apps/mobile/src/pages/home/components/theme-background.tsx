@@ -1,24 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Image, StyleSheet } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 
 import { useAppTheme } from '@/shared/theme/provider';
 
 export function ThemeBackground() {
   const { scheme } = useAppTheme();
   const [darkImageReady, setDarkImageReady] = useState(false);
-  const opacity = useSharedValue(scheme === 'dark' ? 1 : 0);
-
-  useEffect(() => {
-    if (!darkImageReady) return;
-
-    opacity.value = withTiming(scheme === 'dark' ? 1 : 0, {
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: withTiming(darkImageReady && scheme === 'dark' ? 1 : 0, {
       duration: 350,
       easing: Easing.inOut(Easing.cubic),
-    });
-  }, [scheme, darkImageReady, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+    }),
+  }));
 
   return (
     <>
