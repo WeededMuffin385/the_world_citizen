@@ -1,13 +1,14 @@
-import {Camera, Map, type MapRef} from '@maplibre/maplibre-react-native';
-import {useMemo, useRef, useState} from 'react';
+import {Camera, GeoJSONSource, Layer, Map, type StyleSpecification} from '@maplibre/maplibre-react-native';
+import {useMemo, useState} from 'react';
 import {StyleSheet} from 'react-native';
 
-import {countryBounds, countryMapStyle, readCountryCode} from './country-map-data';
+import {COUNTRY_BOUNDARIES, countryBounds, countryMapStyle, readCountryCode} from './country-map-data';
 import type {CountryMapSurfaceProps} from './map-messages';
 
+// Keep the native style stable so selection does not reload the country geometry.
+const BASE_STYLE: StyleSpecification = {version: 8, sources: {}, layers: []};
+
 export function CountryMapSurface({selected, dark, onMessage, onError}: CountryMapSurfaceProps) {
-    const map = useRef<MapRef>(null);
-    const request = useRef(0);
     const [draft, setDraft] = useState(selected);
     const style = useMemo(() => countryMapStyle(dark, draft), [dark, draft]);
     const initialViewState = useMemo(() => {
@@ -16,22 +17,22 @@ export function CountryMapSurface({selected, dark, onMessage, onError}: CountryM
     }, [selected]);
 
     return (
-        <Map ref={map} style={styles.map} mapStyle={style}
+        <Map style={styles.map} mapStyle={BASE_STYLE}
             onDidFinishLoadingMap={() => onMessage({type: 'ready'})}
-            onDidFailLoadingMap={() => onError('boundaries')}
-            onPress={async event => {
-                const current = ++request.current;
-                try {
-                    const features = await map.current?.queryRenderedFeatures(event.nativeEvent.point, {layers: ['countries']});
-                    if (current !== request.current) return;
-                    const code = readCountryCode(features?.[0]?.properties?.code);
-                    if (!code) return;
-                    setDraft(code);
-                    onMessage({type: 'selection', code});
-                } catch {
-                    if (current === request.current) onError('selection');
-                }
+            onDidFailLoadingMap={() => onError('boundaries')}>
+            {style.layers.filter(layer => layer.type === 'background').map(layer => (
+                <Layer key={layer.id} {...layer} />
+            ))}
+            <GeoJSONSource id="countries" data={COUNTRY_BOUNDARIES} onPress={event => {
+                const code = readCountryCode(event.nativeEvent.features[0]?.properties?.code);
+                if (!code) return;
+                setDraft(code);
+                onMessage({type: 'selection', code});
             }}>
+                {style.layers.filter(layer => layer.type !== 'background').map(layer => (
+                    <Layer key={layer.id} {...layer} />
+                ))}
+            </GeoJSONSource>
             <Camera initialViewState={initialViewState} minZoom={0} maxZoom={8} />
         </Map>
     );
