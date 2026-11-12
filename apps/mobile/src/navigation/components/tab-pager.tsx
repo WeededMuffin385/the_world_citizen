@@ -1,6 +1,6 @@
 import {router, usePathname} from 'expo-router';
 import {TabSlot} from 'expo-router/ui';
-import {useEffect, useRef, useState, type ComponentRef} from 'react';
+import {useEffect, useLayoutEffect, useRef, useState, type ComponentRef} from 'react';
 import {Platform, ScrollView, StyleSheet, View, type ViewStyle} from 'react-native';
 
 import {TAB_ROUTES} from '../tab-routes';
@@ -10,13 +10,17 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
     const pathname = usePathname();
     // Keep SSR and the first browser render identical; measure after layout.
     const [width, setWidth] = useState(0);
-    const index = Math.max(0, TAB_ROUTES.findIndex(tab => tab.href === pathname));
+    const routeIndex = TAB_ROUTES.findIndex(tab => tab.href === pathname);
+    const index = Math.max(0, routeIndex);
     const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
     const offset = useRef(index * width);
     const [initialOffset] = useState(() => ({x: index * width, y: 0}));
     const previousWidth = useRef(width);
     const pendingTarget = useRef<number | null>(null);
     const dragging = useRef(false);
+    const userSwipe = useRef(false);
+    const currentPath = useRef(pathname);
+    useLayoutEffect(() => {currentPath.current = pathname;}, [pathname]);
     const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
@@ -25,7 +29,12 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
     }, []);
 
     useEffect(() => {
-        if (width <= 0) return;
+        if (settleTimer.current) clearTimeout(settleTimer.current);
+        dragging.current = false;
+        userSwipe.current = false;
+        pendingTarget.current = null;
+        // Detail routes leave the tab pager mounted, but must never select Home.
+        if (routeIndex < 0 || width <= 0) return;
         const resized = previousWidth.current !== width;
         previousWidth.current = width;
         const target = index * width;
@@ -36,7 +45,7 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
         } else {
             onVisiblePageChange(index);
         }
-    }, [index, width, onVisiblePageChange]);
+    }, [routeIndex, index, width, onVisiblePageChange]);
 
     useEffect(() => () => {
         if (settleTimer.current) clearTimeout(settleTimer.current);
@@ -44,7 +53,8 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
 
     function settle() {
         if (settleTimer.current) clearTimeout(settleTimer.current);
-        if (width <= 0) return;
+        // Ignore delayed callbacks from a previous route and background scroll events.
+        if (routeIndex < 0 || currentPath.current !== pathname || width <= 0) return;
         if (dragging.current) return;
         const nearestIndex = Math.max(0, Math.min(TAB_ROUTES.length - 1, Math.round(offset.current / width)));
         const target = pendingTarget.current ?? nearestIndex * width;
@@ -56,10 +66,15 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
         }
         pendingTarget.current = null;
         const next = TAB_ROUTES[Math.round(target / width)];
-        if (next.href !== pathname) router.navigate(next.href);
+        // Layout restoration and scrollTo animations do not express navigation intent.
+        if (userSwipe.current && next.href !== pathname) {
+            userSwipe.current = false;
+            router.navigate(next.href);
+        }
     }
 
     function scheduleSettle() {
+        if (routeIndex < 0 || currentPath.current !== pathname) return;
         if (settleTimer.current) clearTimeout(settleTimer.current);
         settleTimer.current = setTimeout(settle, 150);
     }
@@ -72,7 +87,9 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
             keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="never"
             scrollEventThrottle={16}
             onTouchStart={Platform.OS === 'web' ? () => {
+                if (routeIndex < 0) return;
                 dragging.current = true;
+                userSwipe.current = true;
                 pendingTarget.current = null;
                 if (settleTimer.current) clearTimeout(settleTimer.current);
             } : undefined}
@@ -86,11 +103,14 @@ export function TabPager({onVisiblePageChange}: {onVisiblePageChange: (index: nu
                 scheduleSettle();
             } : undefined}
             onScrollBeginDrag={() => {
+                if (routeIndex < 0) return;
                 dragging.current = true;
+                userSwipe.current = true;
                 pendingTarget.current = null;
                 if (settleTimer.current) clearTimeout(settleTimer.current);
             }}
             onScroll={event => {
+                if (routeIndex < 0) return;
                 offset.current = event.nativeEvent.contentOffset.x;
                 if (width > 0) {
                     // Follow the visible page immediately, including a drag that reverses.

@@ -1,9 +1,10 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
 import { AnimatedSplashOverlay } from '@/navigation/components/splash-overlay';
-import App_tabs from '@/navigation/app_tabs';
+import {ActiveTripProvider} from '@/pages/journey/active-trip';
+import {LikedTripsProvider} from '@/pages/explore/state/liked-trips';
 import { AppThemeProvider, useAppTheme } from '@/shared/theme/provider';
 
 SplashScreen.preventAutoHideAsync();
@@ -11,7 +12,7 @@ SplashScreen.preventAutoHideAsync();
 export default function TabLayout() {
   return (
     <AppThemeProvider>
-      <ThemedLayout />
+      <LikedTripsProvider><ActiveTripProvider><ThemedLayout /></ActiveTripProvider></LikedTripsProvider>
     </AppThemeProvider>
   );
 }
@@ -27,7 +28,10 @@ function ThemedLayout() {
       }}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <AnimatedSplashOverlay />
-      <App_tabs />
+      <Stack screenOptions={{headerShown: false}}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="trip/[id]" />
+      </Stack>
     </ThemeProvider>
   );
 }

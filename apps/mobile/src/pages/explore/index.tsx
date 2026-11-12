@@ -1,3 +1,4 @@
+import {router} from 'expo-router';
 import {CalendarDays, ChevronDown, Globe2, Map, MapPin, RotateCcw, Search, SlidersHorizontal, X} from 'lucide-react-native';
 import {useState, type PropsWithChildren} from 'react';
 import {FlatList, Pressable, StyleSheet, TextInput, View} from 'react-native';
@@ -6,10 +7,14 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useAppTheme} from '@/shared/theme/provider';
 import {MaxContentWidth, Spacing} from '@/shared/theme/tokens';
 import {ThemedText} from '@/shared/ui/themed-text';
+import {LikeTripButton} from './components/like-trip-button';
+import {useLikedTrips} from './state/liked-trips';
 import {CountryPicker} from './components/country-picker';
 import {CountryMapPicker} from './components/country-map-picker';
 import {TravelCalendar} from './components/travel-calendar';
 import {COUNTRIES} from './data/countries';
+import {TRIPS} from './data/trips';
+import {TRIP_TYPES, type TripTypeId} from './data/trip-types';
 import {formatDate, startOfDay, tripDays} from './date-utils';
 
 const DURATIONS = ['Any duration', '1–3 days', '4–7 days', '8–14 days', '15+ days'] as const;
@@ -31,7 +36,10 @@ function FilterChip({children, selected, onPress}: PropsWithChildren<{selected: 
 
 export default function ExploreScreen() {
     const {colors} = useAppTheme();
+    const {likedIds} = useLikedTrips();
+    const [likedOnly, setLikedOnly] = useState(false);
     const [query, setQuery] = useState('');
+    const [typeId, setTypeId] = useState<TripTypeId | null>(null);
     const [countryCode, setCountryCode] = useState<string | null>(null);
     const [duration, setDuration] = useState<string>(DURATIONS[0]);
     const [start, setStart] = useState<Date | null>(null);
@@ -41,14 +49,28 @@ export default function ExploreScreen() {
     const [countryMapOpen, setCountryMapOpen] = useState(false);
     const today = startOfDay(new Date());
     const country = COUNTRIES.find(item => item.code === countryCode);
-    const destinations = COUNTRIES.filter(item =>
-        (!countryCode || item.code === countryCode) && item.name.toLowerCase().includes(query.trim().toLowerCase()),
-    );
     const days = start && end ? tripDays(start, end) : null;
-    const hasFilters = query !== '' || countryCode !== null || duration !== DURATIONS[0] || start !== null || end !== null;
+    const normalizedQuery = query.trim().toLowerCase();
+    const trips = TRIPS.filter(item => {
+        const countryNames = item.countryCodes.map(code => COUNTRIES.find(entry => entry.code === code)?.name).join(' ');
+        const tripType = TRIP_TYPES.find(entry => entry.id === item.typeId)!;
+        const matchesDuration = days !== null ? item.durationDays === days
+            : duration === DURATIONS[1] ? item.durationDays <= 3
+                : duration === DURATIONS[2] ? item.durationDays >= 4 && item.durationDays <= 7
+                    : duration === DURATIONS[3] ? item.durationDays >= 8 && item.durationDays <= 14
+                        : duration === DURATIONS[4] ? item.durationDays >= 15 : true;
+        return (!likedOnly || likedIds.includes(item.id))
+            && (!countryCode || (item.countryCodes as readonly string[]).includes(countryCode))
+            && (!typeId || item.typeId === typeId)
+            && `${item.name} ${item.route} ${countryNames} ${tripType.name}`.toLowerCase().includes(normalizedQuery)
+            && matchesDuration;
+    });
+    const hasFilters = likedOnly || query !== '' || typeId !== null || countryCode !== null || duration !== DURATIONS[0] || start !== null || end !== null;
 
     function reset() {
+        setLikedOnly(false);
         setQuery('');
+        setTypeId(null);
         setCountryCode(null);
         setDuration(DURATIONS[0]);
         setStart(null);
@@ -72,7 +94,7 @@ export default function ExploreScreen() {
         <View style={styles.header}>
             <View style={[styles.searchBar, {backgroundColor: colors.backgroundElement}]}>
                 <Search size={22} color={colors.tabText} />
-                <TextInput accessibilityLabel="Search destinations" placeholder="Where would you like to go?"
+                <TextInput accessibilityLabel="Search trips" placeholder="Search trips, places, or travel styles"
                     placeholderTextColor={colors.textSecondary} value={query} onChangeText={setQuery}
                     autoCorrect={false} returnKeyType="search" underlineColorAndroid="transparent"
                     style={[styles.searchInput, {color: colors.text}]} />
@@ -85,7 +107,7 @@ export default function ExploreScreen() {
 
             <View style={styles.intro}>
                 <ThemedText type="subtitle">Find your next journey</ThemedText>
-                <ThemedText themeColor="textSecondary">Pick a country. Make time to explore.</ThemedText>
+                <ThemedText themeColor="textSecondary">Find a trip that fits your time and travel style.</ThemedText>
             </View>
 
             <View style={[styles.filters, {borderColor: colors.backgroundSelected}]}>
@@ -117,6 +139,18 @@ export default function ExploreScreen() {
                             <Map color={colors.tabText} size={20} />
                             <ThemedText type="smallBold" style={{color: colors.tabTextSelected}}>Choose on map</ThemedText>
                         </Pressable>
+                    </View>
+                </View>
+
+                <View style={styles.fieldGroup}>
+                    <ThemedText type="smallBold">Trip type</ThemedText>
+                    <View style={styles.chips}>
+                        <FilterChip selected={typeId === null} onPress={() => setTypeId(null)}>All types</FilterChip>
+                        {TRIP_TYPES.map(option => (
+                            <FilterChip key={option.id} selected={typeId === option.id} onPress={() => setTypeId(option.id)}>
+                                {option.name}
+                            </FilterChip>
+                        ))}
                     </View>
                 </View>
 
@@ -185,33 +219,50 @@ export default function ExploreScreen() {
                     </ThemedText>
                 </View>
             </View>
+            <ThemedText type="small" themeColor="textSecondary">
+                Sample trips · Estimated totals in USD per person. Includes stays, meals, activities, and local transport; excludes travel to and from the itinerary.
+            </ThemedText>
             <View style={styles.sectionHeading}>
-                <ThemedText type="smallBold">Destinations</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">{destinations.length} found</ThemedText>
+                <FilterChip selected={likedOnly} onPress={() => setLikedOnly(value => !value)}>
+                    {likedOnly ? 'Show all trips' : `Liked trips (${likedIds.length})`}
+                </FilterChip>
+                <ThemedText type="small" themeColor="textSecondary">{trips.length} found</ThemedText>
             </View>
         </View>
     );
 
     return (
         <SafeAreaView edges={['top', 'left', 'right']} style={[styles.screen, {backgroundColor: colors.background}]}>
-            <FlatList data={destinations} keyExtractor={item => item.code} ListHeaderComponent={header}
+            <FlatList extraData={likedIds} data={trips} keyExtractor={item => item.id} ListHeaderComponent={header}
                 keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
                 contentContainerStyle={styles.content} ListEmptyComponent={
                     <View style={styles.empty}>
-                        <ThemedText type="smallBold">No matching destinations</ThemedText>
-                        <ThemedText themeColor="textSecondary">Try another name or reset your filters.</ThemedText>
+                        <ThemedText type="smallBold">{likedOnly ? 'No liked trips match your filters' : 'No matching trips'}</ThemedText>
+                        <ThemedText themeColor="textSecondary">Like trips using the heart button, or adjust your filters.</ThemedText>
                     </View>
                 }
                 renderItem={({item}) => (
-                    <Pressable accessibilityRole="button" accessibilityLabel={`Choose ${item.name}`}
-                        accessibilityState={{selected: countryCode === item.code}} onPress={() => setCountryCode(item.code)}
-                        style={({pressed}) => [styles.destination, {borderColor: colors.backgroundSelected}, pressed && styles.pressed]}>
-                        <View style={[styles.destinationIcon, {backgroundColor: colors.tabSurface}]}>
-                            <Globe2 color={colors.tabText} size={22} />
+                    <View style={[styles.tripCard, {borderColor: colors.backgroundSelected}]}>
+                        <Pressable accessibilityRole="link" accessibilityLabel={`View ${item.name}`}
+                            onPress={() => router.push({pathname: '/trip/[id]', params: {id: item.id}})}
+                            style={({pressed}) => [styles.tripContent, pressed && styles.pressed]}>
+                        <ThemedText type="smallBold" style={styles.tripTitle}>{item.name}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                            {item.countryCodes.map(code => COUNTRIES.find(entry => entry.code === code)?.name).join(' · ')}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">{item.route}</ThemedText>
+                        <View style={styles.chips}>
+                            <ThemedText type="smallBold">{item.durationDays} days</ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">
+                                {TRIP_TYPES.find(entry => entry.id === item.typeId)?.name}
+                            </ThemedText>
                         </View>
-                        <ThemedText style={styles.flex}>{item.name}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">{item.code}</ThemedText>
-                    </Pressable>
+                        <ThemedText type="smallBold" style={{color: colors.tabTextSelected}}>
+                            {item.currency} {item.totalPrice.toLocaleString('en-US')} · Estimated trip total
+                        </ThemedText>
+                        </Pressable>
+                        <View style={styles.likeButton}><LikeTripButton id={item.id} name={item.name} /></View>
+                    </View>
                 )} />
             {countryPickerOpen && <CountryPicker selected={countryCode} onSelect={setCountryCode} onClose={() => setCountryPickerOpen(false)} />}
             {countryMapOpen && <CountryMapPicker selected={countryCode} onSelect={setCountryCode} onClose={() => setCountryMapOpen(false)} />}
@@ -241,8 +292,10 @@ const styles = StyleSheet.create({
     dateFields: {flexDirection: 'row', flexWrap: 'wrap', gap: 10},
     dateField: {flex: 1, minWidth: 120, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 14},
     summary: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 18},
-    destination: {flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderRadius: 18},
-    destinationIcon: {width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center'},
+    tripCard: {borderWidth: 1, borderRadius: 18},
+    tripContent: {gap: 8, padding: 16},
+    tripTitle: {paddingRight: 52, minHeight: 44},
+    likeButton: {position: 'absolute', top: 12, right: 12},
     empty: {paddingVertical: 32, gap: 8, alignItems: 'center'},
     pressed: {opacity: 0.7},
     disabled: {opacity: 0.4},

@@ -23,6 +23,7 @@ function harness(platform = 'android', pathname = '/home') {
             if (id === 'react/jsx-runtime') return {jsx, jsxs: jsx};
             if (id === 'react') return {
                 useRef: current => ({current}), useEffect: callback => effects.push(callback),
+                useLayoutEffect: callback => effects.push(callback),
                 useState: initial => [stateIndex++ === 0 ? 320 : typeof initial === 'function' ? initial() : initial, () => {}],
             };
             if (id === 'react-native') return {Platform: {OS: platform}, ScrollView: 'ScrollView', View: 'View', StyleSheet: {create: value => value}};
@@ -80,3 +81,21 @@ test('programmatic scrolling highlights each visible page and clamps overscroll'
     pager.scroll(-320);
     assert.equal(pager.visible.at(-1), 0);
 });
+
+for (const platform of ['android', 'ios', 'web']) {
+    test(`${platform}: a background detail route never scrolls or navigates to Home`, () => {
+        const pager = harness(platform, '/trip/japan-classics');
+        pager.scroll(0);
+        pager.props.onMomentumScrollEnd();
+        assert.deepEqual(pager.scrolls, []);
+        assert.deepEqual(pager.navigation, []);
+        assert.deepEqual(pager.visible, []);
+    });
+
+    test(`${platform}: restoring Explore cannot navigate from incidental scroll events`, () => {
+        const pager = harness(platform, '/explore');
+        pager.scroll(0);
+        pager.props.onMomentumScrollEnd();
+        assert.deepEqual(pager.navigation, []);
+    });
+}

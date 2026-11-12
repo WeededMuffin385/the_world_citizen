@@ -7,6 +7,8 @@ import type {CountryMapSurfaceProps} from './map-messages';
 
 // Keep the native style stable so selection does not reload the country geometry.
 const BASE_STYLE: StyleSpecification = {version: 8, sources: {}, layers: []};
+// GeoJSONSource serializes object data on every render, including selection updates.
+const COUNTRY_BOUNDARIES_JSON = JSON.stringify(COUNTRY_BOUNDARIES);
 
 export function CountryMapSurface({selected, dark, onMessage, onError}: CountryMapSurfaceProps) {
     const [draft, setDraft] = useState(selected);
@@ -23,7 +25,7 @@ export function CountryMapSurface({selected, dark, onMessage, onError}: CountryM
             {style.layers.filter(layer => layer.type === 'background').map(layer => (
                 <Layer key={layer.id} {...layer} />
             ))}
-            <GeoJSONSource id="countries" data={COUNTRY_BOUNDARIES} onPress={event => {
+            <GeoJSONSource id="countries" data={COUNTRY_BOUNDARIES_JSON} onPress={event => {
                 const code = readCountryCode(event.nativeEvent.features[0]?.properties?.code);
                 if (!code) return;
                 setDraft(code);

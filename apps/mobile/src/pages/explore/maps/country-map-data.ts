@@ -33,6 +33,7 @@ export function countryMapStyle(dark: boolean, selected: string | null, hovered:
                 'fill-color': ['case', ['==', ['get', 'code'], selected ?? ''], '#a6cf75',
                     ['==', ['get', 'code'], hovered ?? ''], '#b8dc91', dark ? '#33452b' : '#edf3e4'],
                 'fill-opacity': 1,
+                'fill-color-transition': {duration: 0, delay: 0},
             }},
             {id: 'borders', type: 'line', source: 'countries', paint: {
                 'line-color': dark ? '#a8b69a' : '#63734f', 'line-width': 0.7,
